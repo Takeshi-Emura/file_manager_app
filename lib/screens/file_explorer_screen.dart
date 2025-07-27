@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/file_explorer_provider.dart';
 import '../widgets/file_list_item.dart';
@@ -15,52 +16,83 @@ class FileExplorerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(fileExplorerProvider);
     
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ファイルマネージャー'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.create_new_folder),
-            onPressed: () => _showCreateFolderDialog(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.read(fileExplorerProvider.notifier).refresh();
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildPathBar(context, ref, state.currentPath),
-          Expanded(
-            child: _buildFileList(context, ref, state),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ref.read(fileExplorerProvider.notifier).navigateUp();
+    return PopScope(
+      canPop: !state.canGoBack,
+      onPopInvoked: (didPop) async {
+        if (!didPop && state.canGoBack) {
+          await ref.read(fileExplorerProvider.notifier).goBack();
+        }
+      },
+      child: GestureDetector(
+        onPanEnd: (details) {
+          if (details.velocity.pixelsPerSecond.dx > 200 && state.canGoBack) {
+            ref.read(fileExplorerProvider.notifier).goBack();
+          }
         },
-        tooltip: '上の階層へ',
-        child: const Icon(Icons.arrow_upward),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('ファイルマネージャー'),
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            leading: state.canGoBack
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      ref.read(fileExplorerProvider.notifier).goBack();
+                    },
+                  )
+                : null,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.create_new_folder),
+                onPressed: () => _showCreateFolderDialog(context, ref),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  ref.read(fileExplorerProvider.notifier).refresh();
+                },
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              _buildPathBar(context, ref, state),
+              Expanded(
+                child: _buildFileList(context, ref, state),
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              ref.read(fileExplorerProvider.notifier).navigateUp();
+            },
+            tooltip: '上の階層へ',
+            child: const Icon(Icons.arrow_upward),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildPathBar(BuildContext context, WidgetRef ref, String currentPath) {
+  Widget _buildPathBar(BuildContext context, WidgetRef ref, FileExplorerState state) {
     return Container(
       padding: const EdgeInsets.all(8.0),
       color: Theme.of(context).colorScheme.surfaceVariant,
       child: Row(
         children: [
+          if (state.canGoBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+              onPressed: () {
+                ref.read(fileExplorerProvider.notifier).goBack();
+              },
+              tooltip: '前の階層に戻る',
+            ),
           const Icon(Icons.folder),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              currentPath.isEmpty ? 'ルート' : currentPath,
+              state.currentPath.isEmpty ? 'ルート' : state.currentPath,
               style: Theme.of(context).textTheme.bodyMedium,
               overflow: TextOverflow.ellipsis,
             ),

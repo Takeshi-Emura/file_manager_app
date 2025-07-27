@@ -17,12 +17,14 @@ class FileExplorerState {
   final List<FileItem> files;
   final bool isLoading;
   final String? error;
+  final List<String> navigationHistory;
 
   FileExplorerState({
     required this.currentPath,
     required this.files,
     this.isLoading = false,
     this.error,
+    this.navigationHistory = const [],
   });
 
   FileExplorerState copyWith({
@@ -30,14 +32,18 @@ class FileExplorerState {
     List<FileItem>? files,
     bool? isLoading,
     String? error,
+    List<String>? navigationHistory,
   }) {
     return FileExplorerState(
       currentPath: currentPath ?? this.currentPath,
       files: files ?? this.files,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
+      navigationHistory: navigationHistory ?? this.navigationHistory,
     );
   }
+
+  bool get canGoBack => navigationHistory.isNotEmpty;
 }
 
 class FileExplorerNotifier extends StateNotifier<FileExplorerState> {
@@ -186,7 +192,7 @@ class FileExplorerNotifier extends StateNotifier<FileExplorerState> {
     }
   }
 
-  Future<void> navigateToPath(String path) async {
+  Future<void> navigateToPath(String path, {bool addToHistory = true}) async {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
@@ -213,10 +219,19 @@ class FileExplorerNotifier extends StateNotifier<FileExplorerState> {
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
+      List<String> newHistory = List.from(state.navigationHistory);
+      if (addToHistory && state.currentPath.isNotEmpty && state.currentPath != path) {
+        newHistory.add(state.currentPath);
+        if (newHistory.length > 50) {
+          newHistory.removeAt(0);
+        }
+      }
+
       state = state.copyWith(
         currentPath: path,
         files: files,
         isLoading: false,
+        navigationHistory: newHistory,
       );
     } catch (e) {
       state = state.copyWith(
@@ -234,7 +249,17 @@ class FileExplorerNotifier extends StateNotifier<FileExplorerState> {
   }
 
   void refresh() {
-    navigateToPath(state.currentPath);
+    navigateToPath(state.currentPath, addToHistory: false);
+  }
+
+  Future<void> goBack() async {
+    if (!state.canGoBack) return;
+    
+    final previousPath = state.navigationHistory.last;
+    final newHistory = List<String>.from(state.navigationHistory)..removeLast();
+    
+    state = state.copyWith(navigationHistory: newHistory);
+    await navigateToPath(previousPath, addToHistory: false);
   }
 
   Future<bool> createFolder(String folderName) async {
