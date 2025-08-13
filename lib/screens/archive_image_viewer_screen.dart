@@ -41,7 +41,7 @@ class _ArchiveImageViewerScreenState extends ConsumerState<ArchiveImageViewerScr
     final fileName = widget.archivePath.split(Platform.pathSeparator).last;
 
     // Initialize page controller when image list is loaded
-    if (state.imageInfos.isNotEmpty && _pageController == null) {
+    if (state.imageFiles.isNotEmpty && _pageController == null) {
       _pageController = PageController(initialPage: state.currentIndex);
     }
 
@@ -55,9 +55,9 @@ class _ArchiveImageViewerScreenState extends ConsumerState<ArchiveImageViewerScr
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 16),
             ),
-            if (state.imageInfos.isNotEmpty)
+            if (state.imageFiles.isNotEmpty)
               Text(
-                '${state.currentIndex + 1} / ${state.imageInfos.length}',
+                '${state.currentIndex + 1} / ${state.imageFiles.length}',
                 style: const TextStyle(fontSize: 12, color: Colors.white70),
               ),
           ],
@@ -125,7 +125,7 @@ class _ArchiveImageViewerScreenState extends ConsumerState<ArchiveImageViewerScr
       );
     }
 
-    if (state.imageInfos.isEmpty) {
+    if (state.imageFiles.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -183,23 +183,13 @@ class _ArchiveImageViewerScreenState extends ConsumerState<ArchiveImageViewerScr
       },
       child: PhotoViewGallery.builder(
         pageController: _pageController,
-        itemCount: state.imageInfos.length,
+        itemCount: state.imageFiles.length,
         reverse: settings.reverseSwipeDirection,
         builder: (context, index) {
-          final imageData = state.imageCache[index];
-          if (imageData == null) {
-            return PhotoViewGalleryPageOptions.customChild(
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-              minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 4,
-              initialScale: PhotoViewComputedScale.contained,
-            );
-          }
+          final imageFile = state.imageFiles[index];
           
           return PhotoViewGalleryPageOptions(
-            imageProvider: MemoryImage(imageData),
+            imageProvider: MemoryImage(imageFile.data),
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 4,
             initialScale: PhotoViewComputedScale.contained,
@@ -260,9 +250,9 @@ class _ArchiveImageViewerScreenState extends ConsumerState<ArchiveImageViewerScr
             _buildInfoRow('パス', widget.archivePath),
             _buildInfoRow('サイズ', _formatFileSize(stat.size)),
             _buildInfoRow('更新日時', _formatDate(stat.modified)),
-            if (state.imageInfos.isNotEmpty) ...[
+            if (state.imageFiles.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _buildInfoRow('画像数', '${state.imageInfos.length}'),
+              _buildInfoRow('画像数', '${state.imageFiles.length}'),
               if (state.currentImage != null) ...[
                 _buildInfoRow('現在の画像', state.currentImage!.name),
                 _buildInfoRow('画像サイズ', _formatFileSize(state.currentImage!.size)),
