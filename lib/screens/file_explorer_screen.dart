@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/file_explorer_provider.dart';
 import '../widgets/file_list_item.dart';
+import '../widgets/file_grid_item.dart';
+import '../providers/view_mode_provider.dart';
 import '../models/file_item.dart';
 import 'image_viewer_screen.dart';
 import 'audio_player_screen.dart';
@@ -42,6 +44,18 @@ class FileExplorerScreen extends ConsumerWidget {
                   )
                 : null,
             actions: [
+              Consumer(
+                builder: (context, ref, child) {
+                  final isGridView = ref.watch(viewModeProvider);
+                  return IconButton(
+                    icon: Icon(isGridView ? Icons.view_list : Icons.grid_view),
+                    onPressed: () {
+                      ref.read(viewModeProvider.notifier).toggleViewMode();
+                    },
+                    tooltip: isGridView ? 'リスト表示' : 'グリッド表示',
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.create_new_folder),
                 onPressed: () => _showCreateFolderDialog(context, ref),
@@ -58,7 +72,14 @@ class FileExplorerScreen extends ConsumerWidget {
             children: [
               _buildPathBar(context, ref, state),
               Expanded(
-                child: _buildFileList(context, ref, state),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final isGridView = ref.watch(viewModeProvider);
+                    return isGridView
+                        ? _buildFileGrid(context, ref, state)
+                        : _buildFileList(context, ref, state);
+                  },
+                ),
               ),
             ],
           ),
@@ -150,6 +171,67 @@ class FileExplorerScreen extends ConsumerWidget {
       itemBuilder: (context, index) {
         final fileItem = state.files[index];
         return FileListItem(
+          fileItem: fileItem,
+          onTap: () => _handleFileTap(context, ref, fileItem),
+        );
+      },
+    );
+  }
+
+  Widget _buildFileGrid(BuildContext context, WidgetRef ref, FileExplorerState state) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              state.error!,
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(fileExplorerProvider.notifier).refresh();
+              },
+              child: const Text('再試行'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.files.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_open, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('このフォルダは空です'),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(8.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8.0,
+        mainAxisSpacing: 8.0,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: state.files.length,
+      itemBuilder: (context, index) {
+        final fileItem = state.files[index];
+        return FileGridItem(
           fileItem: fileItem,
           onTap: () => _handleFileTap(context, ref, fileItem),
         );

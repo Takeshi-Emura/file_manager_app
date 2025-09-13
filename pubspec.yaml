@@ -63,6 +63,9 @@ dependencies:
   # Archive handling
   archive: ^3.4.10
   
+  # Image processing
+  image: ^4.0.17
+  
   # Settings storage
   shared_preferences: ^2.2.2
   
